@@ -11,10 +11,10 @@ Setup a preconfigured cluster: (look in gce_cluster.py)
 
     gce_cluster.py <project> <cluster-name>
 
-gce_cluster.py <project> <cluster-name>
+Setup cluster with # and type of slaves:
 
-Setup cluster with # and type of slaves:  
-gce_cluster.py <project> <cluster-name> <no-slaves> <slave-type>
+    gce_cluster.py <project> <cluster-name> <no-slaves> <slave-type>
 
-Kill the cluster:  
-gce_cluster.py <project> <cluster-name> destroy
+Kill the cluster:
+
+    gce_cluster.py <project> <cluster-name> destroy
