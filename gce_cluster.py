@@ -128,6 +128,16 @@ def read_args():
 		print os_image
 		username = getpass.getuser()
 
+	elif len(sys.argv) == 5 and sys.argv[4].lower() == "simple":
+                print '*** Simple ***'
+		project = sys.argv[1]
+		cluster_name = sys.argv[2]
+		slave_no = int(sys.argv[4])
+		username = default_username
+		identity_file = s_identity_file
+		slave_nodes = get_cluster_ips_simple()
+                sys.exit(0)
+
 	elif len(sys.argv) == 4 and sys.argv[3].lower() == "test":
                 print '*** Test ***'
 		project = sys.argv[1]
@@ -143,16 +153,6 @@ def read_args():
 		identity_file = default_identity_file
 		(master_nodes, slave_nodes) = get_cluster_ips()
 		install_java(master_nodes,slave_nodes)
-                sys.exit(0)
-
-	elif len(sys.argv) == 5 and sys.argv[4].lower() == "simple":
-                print '*** Launching Instances ***'
-		project = sys.argv[1]
-		cluster_name = sys.argv[2]
-		slave_no = int(sys.argv[4])
-		username = default_username
-		identity_file = s_identity_file
-		slave_nodes = get_cluster_ips_simple()
                 sys.exit(0)
 
 	elif len(sys.argv) == 4 and sys.argv[3].lower() == "destroy":
