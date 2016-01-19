@@ -145,7 +145,7 @@ def read_args():
 		install_java(master_nodes,slave_nodes)
                 sys.exit(0)
 
-	elif len(sys.argv) == 5 and sys.argv[3].lower() == "simple":
+	elif len(sys.argv) == 5 and sys.argv[4].lower() == "simple":
                 print '*** Launching Instances ***'
 		project = sys.argv[1]
 		cluster_name = sys.argv[2]
