@@ -6,6 +6,8 @@
 # https://cloud.google.com/compute/docs/gcloud-compute/
 ###
 
+__author__ = 'Pete C. Perlegos'
+
 from __future__ import with_statement
 
 import logging
@@ -76,12 +78,17 @@ image_centos_6 = 'https://www.googleapis.com/compute/v1/projects/centos-cloud/gl
 image_ubuntu_14_04 = "https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1404-trusty-v20151113"
 
 # default values
-default_username = "cloubrain"
+default_username = ""
 default_identity_file = "gcompute"
 default_slave_no = 2
 default_slave_type = "n1-standard-1"
 default_master_type = "n1-standard-1"
 default_zone = "us-central1-a"
+
+type_cpu = "n1-highcpu-32"
+s_zone = "us-central1-f"
+s_identity_file = "sp"
+
 
 def read_args():
 
@@ -136,6 +143,16 @@ def read_args():
 		identity_file = default_identity_file
 		(master_nodes, slave_nodes) = get_cluster_ips()
 		install_java(master_nodes,slave_nodes)
+                sys.exit(0)
+
+	elif len(sys.argv) == 4 and sys.argv[3].lower() == "simple":
+                print '*** Launching Instances ***'
+		project = sys.argv[1]
+		cluster_name = sys.argv[2]
+		slave_no = int(sys.argv[4])
+		username = default_username
+		identity_file = s_identity_file
+		slave_nodes = get_cluster_ips_simple()
                 sys.exit(0)
 
 	elif len(sys.argv) == 4 and sys.argv[3].lower() == "destroy":
@@ -245,7 +262,7 @@ def launch_slaves():
 	for s_id in range(1,slave_no+1):
 		command = 'gcloud compute --project "' + project + '" instances create "' + cluster_name + '-slave' + str(s_id) + '" --zone "' + zone + '" --machine-type "' + slave_type + '" --network "' + cluster_name + '-network" --maintenance-policy "MIGRATE" --scopes "https://www.googleapis.com/auth/devstorage.read_only" --image "' + os_image + '" --boot-disk-type "pd-standard" --boot-disk-device-name "' + cluster_name + '-s' + str(s_id) + 'd"'
 		print command
-		command = shlex.split(command)	
+		command = shlex.split(command)
 		subprocess.call(command)
 
 def launch_cluster():
@@ -254,6 +271,16 @@ def launch_cluster():
 	setup_network()	
 	launch_master()
 	launch_slaves()
+
+def launch_cluster_simple():
+	
+	print '[ Launching Cluster ]'
+	### Need to parallelize slave setup
+	for s_id in range(1,slave_no+1):
+		command = 'gcloud compute --project "' + project + '" instances create "' + cluster_name + '-slave' + str(s_id) + '" --zone "' + s_zone + '" --machine-type "' + type_cpu + '" --network "default" --maintenance-policy "MIGRATE" --scopes "https://www.googleapis.com/auth/devstorage.full_control" --image "' + os_image + '" --boot-disk-type "pd-standard" --boot-disk-device-name "' + cluster_name + '-s' + str(s_id) + 'd"'
+		print command
+		command = shlex.split(command)
+		#subprocess.call(command)
 
 def check_gcloud():
 	
@@ -288,6 +315,23 @@ def get_cluster_ips():
 	# Return all the instances
 	return (master_nodes, slave_nodes)
 
+def get_cluster_ips_simple():
+		
+	command = 'gcloud compute --project ' + project + ' instances list --format json'
+	output = subprocess.check_output(command, shell=True)
+	data = json.loads(output)
+	slave_nodes=[]
+
+	for instance in data:
+		try:
+			host_ip = instance['networkInterfaces'][0]['accessConfigs'][0]['natIP']
+			slave_nodes.append(host_ip)
+		except:
+			pass
+	
+	# Return all the instances
+	return slave_nodes
+
 def enable_sudo(host,command):
         command = "ssh -i " + identity_file + " -t -o 'UserKnownHostsFile=/dev/null' -o 'CheckHostIP=no' -o 'StrictHostKeyChecking no' "+ username + "@" + host + " '" + command + "'"
         print command
@@ -301,10 +345,11 @@ def update_nodes(master_nodes,slave_nodes):
         # Ubuntu
 	print '[ Updataing Nodes ]'
         command = "sudo apt-get -y update"
-	
-	master = master_nodes[0]
-	master_thread = threading.Thread(target=ssh_thread, args=(master, command))
-	master_thread.start()
+
+	if master_nodes:
+                master = master_nodes[0]
+                master_thread = threading.Thread(target=ssh_thread, args=(master, command))
+                master_thread.start()
 	
 	for slave in slave_nodes:
 		slave_thread = threading.Thread(target=ssh_thread, args=(slave, command))
@@ -318,10 +363,11 @@ def install_java_rhel(master_nodes,slave_nodes):
         # RHEL/CentOS
 	print '[ Installing Java and Development Tools ]'
 	command = ""
-	
-	master = master_nodes[0]
-	master_thread = threading.Thread(target=ssh_thread, args=(master,"sudo yum install -y java-1.7.0-openjdk;sudo yum install -y java-1.7.0-openjdk-devel;sudo yum groupinstall \'Development Tools\' -y"))
-	master_thread.start()
+
+	if master_nodes:
+                master = master_nodes[0]
+                master_thread = threading.Thread(target=ssh_thread, args=(master,"sudo yum install -y java-1.7.0-openjdk;sudo yum install -y java-1.7.0-openjdk-devel;sudo yum groupinstall \'Development Tools\' -y"))
+                master_thread.start()
 	
 	for slave in slave_nodes:
 		slave_thread = threading.Thread(target=ssh_thread, args=(slave,"sudo yum install -y java-1.7.0-openjdk;sudo yum install -y java-1.7.0-openjdk-devel;sudo yum groupinstall \'Development Tools\' -y"))
@@ -335,10 +381,11 @@ def install_java(master_nodes,slave_nodes):
         # Ubuntu
 	print '[ Installing Java ]'
 	command = ""
-	
-	master = master_nodes[0]
-	master_thread = threading.Thread(target=ssh_thread, args=(master,"sudo apt-get -y install default-jre;sudo apt-get -y install default-jdk"))
-	master_thread.start()
+
+	if master_nodes:
+                master = master_nodes[0]
+                master_thread = threading.Thread(target=ssh_thread, args=(master,"sudo apt-get -y install default-jre;sudo apt-get -y install default-jdk"))
+                master_thread.start()
 	
 	for slave in slave_nodes:
 		slave_thread = threading.Thread(target=ssh_thread, args=(slave,"sudo apt-get -y install default-jre;sudo apt-get -y install default-jdk"))
@@ -428,7 +475,7 @@ def launch_main():
 	check_gcloud()
 	
 	#Launch the cluster
-	launch_cluster()
+	launch_cluster_simple()
 
 	#Wait some time for machines to bootup
 	waitTime = 90   # recommend 120 seconds
@@ -440,19 +487,52 @@ def launch_main():
 
         #Update Nodes
 	update_nodes(master_nodes,slave_nodes)
-	print '*** Updated Nodes ***'
+	print '[ Updated Nodes: Waiting ' + str(waitTime) + ' Seconds ]'
 	time.sleep(waitTime)
 
 	#Install Java
 	install_java(master_nodes,slave_nodes)
-	print '*** Installed Java ***'
+	pprint '[ Installing Java: Waiting ' + str(waitTime) + ' Seconds ]'
 	time.sleep(waitTime)
+
+def launch_simple():
+
+	print "[ Launch Script Started ]"	
+	#Read the arguments
+	read_args()
+	#Make sure gcloud is accessible.
+	check_gcloud()
+	
+	#Launch the cluster
+	launch_cluster()
+
+	#Wait some time for machines to bootup
+	waitTime = 90   # recommend 120 seconds
+	print '[ Waiting ' + str(waitTime) + ' Seconds for Machines to start up ]'
+	time.sleep(waitTime)
+
+	#Get Master/Slave IP Addresses
+	slave_nodes = get_cluster_ips_simple()
+	print slave_nodes
+	"""
+
+        #Update Nodes
+	update_nodes(None,slave_nodes)
+	print '[ Updated Nodes: Waiting ' + str(waitTime) + ' Seconds ]'
+	time.sleep(waitTime)
+
+	#Install Java
+	install_java(None,slave_nodes)
+	print '[ Installing Java: Waiting ' + str(waitTime) + ' Seconds ]'
+	time.sleep(waitTime)
+	"""
 
 
 def main():
   try:
     #real_main()
-    launch_main()
+    #launch_main()
+    launch_simple()
   except Exception as e:
     print >> stderr, "\nError:\n", e
     
