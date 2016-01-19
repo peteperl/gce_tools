@@ -234,7 +234,7 @@ def launch_master():
 
 	print '[ Launching Master ]'
 	command = 'gcloud compute --project "' + project + '" instances create "' + cluster_name + '-master" --zone "' + zone + '" --machine-type "' + master_type + '" --network "' + cluster_name + '-network" --maintenance-policy "MIGRATE" --scopes "https://www.googleapis.com/auth/devstorage.read_only" --image "' + os_image + '" --boot-disk-type "pd-standard" --boot-disk-device-name "' + cluster_name + '-md"'
-	#print command
+	print command
 	command = shlex.split(command)
 	subprocess.call(command)
 
